@@ -761,7 +761,7 @@ export const generateLoyaltUpgradeEmail = (
   const gender = info?.Gender || "-";const prevTierRaw = info?.lastMonthLoyaltyTier || "-";
 
 const prevTier =
-  ["warning", "rejected"].includes(prevTierRaw?.toLowerCase())
+  ["warning", "rejected" ,"removed"].includes(prevTierRaw?.toLowerCase())
     ? "Blue"
     : prevTierRaw;
     

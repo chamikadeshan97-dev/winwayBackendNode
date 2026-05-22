@@ -84,8 +84,12 @@ INSERT OR REPLACE INTO Current_Customer_Details (
           Ticket_Count,
           Loyalty_Tier,
         } = cust;
-        console.log(current_count + i, MobileNumber, Loyalty_Tier, Ticket_Count);
-
+        console.log(
+          current_count + i,
+          MobileNumber,
+          Loyalty_Tier,
+          Ticket_Count,
+        );
 
         const Loyalty_Number = `0884  2025  0000  ${String(
           current_count + i,
@@ -503,6 +507,7 @@ function normalizeToDBFormat(number) {
   let num = String(number).trim();
 
   // Remove +
+
   num = num.replace(/^\+/, "");
 
   // If starts with 0 → convert to 94
@@ -542,9 +547,9 @@ router.post("/monthly-update", async (req, res) => {
         const selectSql = `
   SELECT Current_Loyalty_Tier, Current_Ticket_Count, Last_Update
   FROM Current_Customer_Details
-  WHERE MobileNumber = ?
-     OR MobileNumber = CONCAT('+', ?)
+  WHERE REPLACE(MobileNumber, '+', '') = REPLACE(?, '+', '')
   LIMIT 1
+
 `;
 
         // 🔵 SELECT BEFORE
@@ -577,9 +582,12 @@ router.post("/monthly-update", async (req, res) => {
             row.Current_Loyalty_Tier === "Rejected" &&
             Loyalty_Tier === "Blue"
           ) {
-            console.log("===========******=======", MobileNumber);
-
             newTier = "Removed";
+          } else if (
+            row.Current_Loyalty_Tier === "Removed" &&
+            Loyalty_Tier === "Blue"
+          ) {
+            newTier = "Removed Done";
           }
 
           const TierPriority = [
@@ -1408,7 +1416,41 @@ router.put(
   promotionUpload.single("image"), // 🔥 SAME HANDLER
   updatePromotion,
 );
+router.put("/normalize-mobile-numbers", (req, res) => {
+  try {
+    const updateSql = `
+      UPDATE Current_Customer_Details
+      SET MobileNumber = REPLACE(MobileNumber, '+94', '94')
+      WHERE MobileNumber LIKE '+94%'
+    `;
 
+    db.run(updateSql, function (err) {
+      if (err) {
+        console.error("❌ Error normalizing mobile numbers:", err.message);
+
+        return res.status(500).json({
+          success: false,
+          message: "Failed to normalize mobile numbers",
+          error: err.message,
+        });
+      }
+
+      return res.status(200).json({
+        success: true,
+        message: "✅ Mobile numbers normalized successfully (+94 → 94)",
+        updatedRows: this.changes, // sqlite uses this.changes
+      });
+    });
+  } catch (error) {
+    console.error("❌ Unexpected error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Unexpected server error",
+      error: error.message,
+    });
+  }
+});
 router.get("/getAllPromotions", getAllPromotions);
 
 router.patch("/deactivatePromotion/:id/deactivate", deletePromotion);
